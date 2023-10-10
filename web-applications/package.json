@@ -2,7 +2,7 @@
   "name": "modus-cdk-template",
   "version": "0.1.0",
   "bin": {
-    "modus-cdk-template": "bin/modus-cdk-template.js"
+    "modus-cdk-template": "bin/app.js"
   },
   "scripts": {
     "build": "tsc",

@@ -7,7 +7,12 @@ const app = new App();
 
 const modusWebDev = new NonProdWebStack(app, 'modus-web-nprd', {
   appName: "modus",
-  environment: "nprd"
+  environment: "nprd",
+  defaultCertificateArn: "arn:aws:acm:us-east-1:123456:certificate/test",
+  env: {
+    account: "123456",
+    region: "us-east-1"
+  }
 });
 
 Tags.of(app).add("Client", "modus")

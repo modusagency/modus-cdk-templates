@@ -1,14 +1,16 @@
 import { ExtendedConstruct, ExtendedStack } from './common';
 import { ExtendedConstructProps, EcsServiceProps } from './interfaces'
 import { Cluster, ContainerImage, FargateService, FargateTaskDefinition, LogDriver, Secret } from 'aws-cdk-lib/aws-ecs'; 
-import { Vpc, Port } from 'aws-cdk-lib/aws-ec2';
+import { Vpc, Port, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { ApplicationListenerRule, ApplicationLoadBalancer, ApplicationTargetGroup, ListenerAction, TargetType, ListenerCondition } from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
 
 interface EcsBuilderProps extends ExtendedConstructProps {
     vpc: Vpc
+    certificates?: ICertificate[]
 }
 /* 
 Microservices Class
@@ -36,13 +38,7 @@ export class EcsBuilder extends ExtendedConstruct {
     constructor(scope: ExtendedStack, id: string, props: EcsBuilderProps) {
         super(scope, id, props);
 
-        // Error handling
-        if(!(props.vpc instanceof Vpc)) {
-            console.log(`You must pass a valid EC2::VPC to the Microservices class.`)
-            process.exit(1)
-        } else { 
-            this.vpc = props.vpc
-        }
+        this.vpc = props.vpc
 
         // Internal Application Load Balancer
         this.loadBalancer = new ApplicationLoadBalancer(
@@ -54,7 +50,7 @@ export class EcsBuilder extends ExtendedConstruct {
                 internetFacing: true
             }
         )
-        // HTTP Listener (Port 80)
+        // HTTP Listener (Port 80, redirects to 443)
         const httpListener = this.loadBalancer.addListener(
             this.id.build("httpListener"),
             {
@@ -65,9 +61,10 @@ export class EcsBuilder extends ExtendedConstruct {
 
         // HTTPS Listener (Port 443)
         this.httpsListener = this.loadBalancer.addListener(
-            this.id.build("httpListener"),
+            this.id.build("httpsListener"),
             {
                 defaultAction: ListenerAction.fixedResponse(501),
+                certificates: props.certificates,
                 port: 443
             }
         )

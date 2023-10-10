@@ -9,7 +9,7 @@ import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { AllowedMethods, CachePolicy, Distribution, OriginRequestPolicy, PriceClass, ResponseHeadersPolicy, ViewerProtocolPolicy } from 'aws-cdk-lib/aws-cloudfront';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { LoadBalancerV2Origin, S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
-import { AuroraCapacityUnit, AuroraMysqlEngineVersion, ClusterInstance, DatabaseCluster, DatabaseClusterEngine, DatabaseInstance, ServerlessCluster } from 'aws-cdk-lib/aws-rds';
+import { AuroraMysqlEngineVersion, DatabaseClusterEngine, ServerlessCluster } from 'aws-cdk-lib/aws-rds';
 import { Duration } from 'aws-cdk-lib';
 
 export class NonProdWebStack extends ExtendedStack {
@@ -27,6 +27,11 @@ export class NonProdWebStack extends ExtendedStack {
       natGateways: 1,
       ipAddresses: IpAddresses.cidr("10.10.0.0/16")
     })
+
+    /** 
+     * Default Certificate to use for Load Balancer, Cloudfront Distribution
+     */
+    const defaultCertificate = Certificate.fromCertificateArn(this, this.id.build("defaultCert"), props.defaultCertificateArn!)
 
     /** 
      * Private S3 bucket to store media, static HTML/CSS/JS files.
@@ -57,7 +62,10 @@ export class NonProdWebStack extends ExtendedStack {
      */
     const ecsBuilder = new EcsBuilder(this, this.id.build("ecsBuilder"), {
       vpc: vpc,
-      IdBuilder: this.id
+      IdBuilder: this.id,
+      certificates: [
+        defaultCertificate
+      ]
     })
 
     /**
@@ -102,9 +110,17 @@ export class NonProdWebStack extends ExtendedStack {
 
     /**
      * Cloudfront Distribution to cache S3 and ECS Load Balancer
+     * Configure your API & Web Application Domain names.
+     * Paths:
+     *    (default) / -> forwards to ECS Load Balancer
+     *    /media/* -> forwards to Media Bucket
      */
     new Distribution(this, this.id.build("cdn"), {
-      certificate: Certificate.fromCertificateArn(this, this.id.build("certificate"), "IMPORT_YOUR_CERT_ARN"),
+      certificate: defaultCertificate,
+      domainNames: [
+        "modus-sandbox.com",
+        "api.modus-sandbox.com"
+      ],
       defaultBehavior: {
         origin: new LoadBalancerV2Origin(ecsBuilder.loadBalancer),
         allowedMethods: AllowedMethods.ALLOW_ALL,
@@ -115,7 +131,7 @@ export class NonProdWebStack extends ExtendedStack {
         compress: true
       },
       additionalBehaviors: {
-        "/media": {
+        "/media/*": {
           origin: new S3Origin(mediaBucket),
           allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
           viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,

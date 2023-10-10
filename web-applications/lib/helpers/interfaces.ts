@@ -18,6 +18,10 @@ export interface ExtendedStackProps extends StackProps {
      * (Optional) Unique identifier to be added to Logical IDs. 
      */ 
     readonly uniqueIdentifier?: string
+    /**
+     * (Optional) Default Certificate Arn
+     */
+    readonly defaultCertificateArn?: string
 }
 export interface ExtendedConstructProps {
     readonly IdBuilder: IdBuilder
